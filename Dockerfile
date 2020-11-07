@@ -1,0 +1,22 @@
+FROM golang:1.15-alpine AS build-env
+
+RUN apk --no-cache add gcc
+
+WORKDIR ${GOPATH}/src/github.com/0xERR0R/crony
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+RUN go build -o /go/bin/crony .
+
+FROM alpine
+
+LABEL org.opencontainers.image.source="https://github.com/0xERR0R/crony" \
+      org.opencontainers.image.url="https://github.com/0xERR0R/crony" \
+      org.opencontainers.image.title="Docker cron task scheduler"
+
+COPY --from=build-env /go/bin/crony /app/crony
+
+ENTRYPOINT ["/app/crony"]

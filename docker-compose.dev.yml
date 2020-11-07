@@ -1,0 +1,25 @@
+version: "2.4"
+services:
+  crony:
+    build: .
+    image: crony
+    container_name: crony-dev
+    environment:
+      - SMTP_HOST=mailhog
+      - SMTP_PORT=1025
+      - SMTP_USER=
+      - SMTP_PASSWORD=
+      - MAIL_TO=test@example.com
+      - MAIL_FROM=🤖CRONY <from@example.com>
+      - MAIL_POLICY=always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "8025:8025"
+  job1:
+    image: ubuntu
+    command: echo "job1 finished"
+    labels:
+      - crony.schedule="@every 15s"
