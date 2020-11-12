@@ -19,4 +19,6 @@ LABEL org.opencontainers.image.source="https://github.com/0xERR0R/crony" \
 
 COPY --from=build-env /go/bin/crony /app/crony
 
+EXPOSE 8080
+
 ENTRYPOINT ["/app/crony"]

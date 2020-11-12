@@ -1,8 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"github.com/armon/circbuf"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"time"
@@ -10,6 +13,24 @@ import (
 
 const (
 	maxLogSize = 1 * 1024 * 1024
+)
+
+var (
+	executed = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "crony_executed_count",
+		Help: "Number of job executions",
+	}, []string{"container_name", "success"})
+
+	durationHistogram = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "crony_job_duration_sec",
+		Help:    "job execution durationHistogram in sec",
+		Buckets: []float64{15, 30, 60, 120, 300, 600, 1800, 3600},
+	}, []string{"container_name", "success"})
+
+	durationGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "crony_last_duration_sec",
+		Help: "last job duration in sec",
+	}, []string{"container_name", "success"})
 )
 
 type ContainerJob struct {
@@ -20,6 +41,7 @@ type ContainerJob struct {
 
 func (cj *ContainerJob) Run() {
 	log.Infof("starting execution of container '%s'", cj.containerName)
+
 	startTime := time.Now()
 
 	// TODO check container state
@@ -34,6 +56,10 @@ func (cj *ContainerJob) Run() {
 		log.Errorf("can't wait for the end of the execution of container '%s': ", cj.containerName, err)
 		return
 	}
+	labels := prometheus.Labels{
+		"container_name": cj.containerName,
+		"success":        fmt.Sprintf("%t", returnCode == 0)}
+	defer executed.With(labels).Inc()
 	endTime := time.Now()
 
 	log.StandardLogger().Logf(logLevelForReturnCode(returnCode), "Execution of container '%s' finished with return code %d", cj.containerName, returnCode)
@@ -52,12 +78,17 @@ func (cj *ContainerJob) Run() {
 	if err != nil {
 		log.Error("can't retrieve output streams: ", err)
 	}
+	jobDuration := endTime.Sub(startTime)
+
+	defer durationHistogram.With(labels).Observe(jobDuration.Seconds())
+
+	defer durationGauge.With(labels).Set(jobDuration.Seconds())
 
 	if cj.mailConfig.MailPolicy == Always || (cj.mailConfig.MailPolicy == OnError && returnCode != 0) {
 		err = SendMail(cj.mailConfig, MailParams{
 			ContainerName: cj.containerName,
 			ReturnCode:    returnCode,
-			Duration:      endTime.Sub(startTime),
+			Duration:      jobDuration,
 			StdOut:        stdOutBuf.String(),
 			StdErr:        stdErrBuf.String(),
 		})
@@ -87,6 +118,10 @@ func (l *SkipLogger) Error(err error, msg string, keysAndValues ...interface{}) 
 }
 
 func createAndStartCron() *cron.Cron {
+	_ = prometheus.Register(executed)
+	_ = prometheus.Register(durationHistogram)
+	_ = prometheus.Register(durationGauge)
+
 	c := cron.New()
 	c.Start()
 	return c

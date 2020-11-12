@@ -1,12 +1,17 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 func main() {
@@ -27,6 +32,14 @@ func main() {
 
 	dockerClient.RegisterDockerEventListeners(crony.onContainerCreated, crony.onContainerDestroyed)
 
+	router := http.NewServeMux()
+	router.Handle("/metrics", promhttp.Handler())
+
+	server := &http.Server{
+		Addr:    fmt.Sprintf(":%v", 8080),
+		Handler: router,
+	}
+
 	signals := make(chan os.Signal)
 	done := make(chan bool)
 
@@ -36,9 +49,21 @@ func main() {
 		log.Infof("Terminating...")
 
 		c.Stop()
-		crony.docker.ShutDown()
-		done <- true
+		log.Info("Server is shutting down...")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if err := server.Shutdown(ctx); err != nil {
+			log.Fatalf("Could not gracefully shutdown the server: %v\n", err)
+		}
+		close(done)
 	}()
+
+	log.Info("Server is ready to handle requests at :", 8080)
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatalf("Could not listen on %d: %v\n", 8080, err)
+	}
 
 	<-done
 	log.Infof("bye...")
