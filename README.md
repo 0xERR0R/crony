@@ -35,6 +35,8 @@ services:
       - MAIL_FROM=CRONY <xxx@googlemail.com>
       # global mail policy: always, never or onerror
       - MAIL_POLICY=always
+      # optional: log level (one of trace, debug, info, warn, error, fatal), info is default if not set
+      - LOG_LEVEL=info
     mem_limit: 30MB
 ```
 

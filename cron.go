@@ -39,7 +39,7 @@ type ContainerJob struct {
 }
 
 func (cj *ContainerJob) Run() {
-	log.Infof("starting execution of container '%s'", cj.containerName)
+	log.Debugf("starting execution of container '%s'", cj.containerName)
 
 	startTime := time.Now()
 
@@ -101,7 +101,7 @@ func logLevelForReturnCode(returnCode int64) log.Level {
 	if returnCode != 0 {
 		return log.WarnLevel
 	}
-	return log.InfoLevel
+	return log.DebugLevel
 }
 
 type SkipLogger struct {
