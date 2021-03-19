@@ -12,7 +12,7 @@ require (
 	github.com/hako/durafmt v0.0.0-20200710122514-c0fb7b4da026
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/prometheus/client_golang v1.9.0
+	github.com/prometheus/client_golang v1.10.0
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sirupsen/logrus v1.8.1
 	golang.org/x/net v0.0.0-20201031054903-ff519b6c9102 // indirect
