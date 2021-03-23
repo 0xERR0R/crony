@@ -1,6 +1,6 @@
 module github.com/0xERR0R/crony
 
-go 1.15
+go 1.16
 
 require (
 	github.com/Microsoft/go-winio v0.4.14 // indirect
