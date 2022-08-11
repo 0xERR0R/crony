@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/dansage/hcio"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/robfig/cron/v3"
@@ -121,10 +122,16 @@ func (c *Crony) registerContainer(container CronyContainer) {
 
 	log.Infof("... registering container with '%s'", container.CronString)
 
+	var hcCheck *hcio.Check
+	if container.HcUuid != "" {
+		hcCheck = hcio.NewCheck(container.HcUuid)
+	}
+
 	job := cron.NewChain(cron.SkipIfStillRunning(&SkipLogger{containerName: container.Name})).Then(&ContainerJob{
 		docker:        c.docker,
 		containerName: container.Name,
 		mailConfig:    mailConfig(container),
+		hc:            hcCheck,
 	})
 	id, err := c.cron.AddJob(container.CronString, job)
 	if err != nil {

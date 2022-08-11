@@ -9,6 +9,7 @@ Simple docker cron job scheduler.
 - Start existing docker container periodically
 - Send a mail after the job execution (always, or only on failure) with stdout/stderr
 - Automatically register new containers
+- healthchecks.io integration (job start/return code, duration)
 
 ## Usage
 
@@ -50,5 +51,7 @@ Use following labels in your docker container which should be scheduled by crony
           - crony.schedule="*/15 6-23 * * *"
           # optional to override the global settings
           - crony.mail_policy=onerror
+          # optional, use following job UUID for reporting to healthcheck.io
+          - crony.hcio_uuid=394ed711-afca-4a4f-9cdb-16b7e976418e
 ...
 ```

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/armon/circbuf"
+	"github.com/dansage/hcio"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -36,6 +37,7 @@ type ContainerJob struct {
 	docker        *DockerClient
 	containerName string
 	mailConfig    *MailConfig
+	hc            *hcio.Check
 }
 
 func (cj *ContainerJob) Run() {
@@ -46,15 +48,26 @@ func (cj *ContainerJob) Run() {
 	// TODO check container state
 	err := cj.docker.ContainerStart(cj.containerName)
 	if err != nil {
-		log.Errorf("can't start container '%s': ", cj.containerName, err)
+		log.Errorf("can't start container '%s': %v", cj.containerName, err)
 		return
 	}
 
-	returnCode, err := cj.docker.ContainerWait(cj.containerName)
-	if err != nil {
-		log.Errorf("can't wait for the end of the execution of container '%s': ", cj.containerName, err)
-		return
+	cj.jobStarted()
+
+	statusCh, errCh := cj.docker.ContainerWait(cj.containerName)
+	var returnCode int64
+	select {
+	case err := <-errCh:
+		if err != nil {
+			log.Errorf("can't wait for the end of the execution of container '%s': %v", cj.containerName, err)
+			return
+		}
+	case s := <-statusCh:
+		returnCode = s.StatusCode
 	}
+
+	cj.jobFinished(returnCode)
+
 	labels := prometheus.Labels{
 		"container_name": cj.containerName,
 		"success":        fmt.Sprintf("%t", returnCode == 0)}
@@ -70,7 +83,7 @@ func (cj *ContainerJob) Run() {
 
 	out, err := cj.docker.ContainerLogs(cj.containerName, startTime)
 	if err != nil {
-		log.Errorf("can't retrieve logs for container '%s': ", cj.containerName, err)
+		log.Errorf("can't retrieve logs for container '%s': %v", cj.containerName, err)
 		return
 	}
 
@@ -92,7 +105,30 @@ func (cj *ContainerJob) Run() {
 			StdErr:        stdErrBuf.String(),
 		})
 		if err != nil {
-			log.Error("can't send mail", err)
+			log.Error("can't send mail: ", err)
+		}
+	}
+}
+
+func (cj *ContainerJob) jobFinished(returnCode int64) {
+	if cj.hc != nil {
+		var err error
+		if returnCode == 0 {
+			err = cj.hc.Success()
+		} else {
+			err = cj.hc.FailCode(uint8(returnCode))
+		}
+		if err != nil {
+			log.Error("can't ping 'end' to hc.io: ", err)
+		}
+	}
+}
+
+func (cj *ContainerJob) jobStarted() {
+	if cj.hc != nil {
+		err := cj.hc.Start()
+		if err != nil {
+			log.Error("can't ping 'start' to hc.io: ", err)
 		}
 	}
 }
