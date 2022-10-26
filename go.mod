@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2
 	github.com/dansage/hcio v0.1.0
-	github.com/docker/docker v20.10.18+incompatible
+	github.com/docker/docker v20.10.21+incompatible
 	github.com/hako/durafmt v0.0.0-20200710122514-c0fb7b4da026
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/prometheus/client_golang v1.13.0
