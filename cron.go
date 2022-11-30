@@ -2,14 +2,17 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"strings"
+	"time"
+
+	"github.com/0xERR0R/crony/healthchecks"
 	"github.com/armon/circbuf"
-	"github.com/dansage/hcio"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
-	"time"
 )
 
 const (
@@ -37,7 +40,7 @@ type ContainerJob struct {
 	docker        *DockerClient
 	containerName string
 	mailConfig    *MailConfig
-	hc            *hcio.Check
+	hc            *healthchecks.Check
 }
 
 func (cj *ContainerJob) Run() {
@@ -66,8 +69,6 @@ func (cj *ContainerJob) Run() {
 		returnCode = s.StatusCode
 	}
 
-	cj.jobFinished(returnCode)
-
 	labels := prometheus.Labels{
 		"container_name": cj.containerName,
 		"success":        fmt.Sprintf("%t", returnCode == 0)}
@@ -84,7 +85,7 @@ func (cj *ContainerJob) Run() {
 	out, err := cj.docker.ContainerLogs(cj.containerName, startTime)
 	if err != nil {
 		log.Errorf("can't retrieve logs for container '%s': %v", cj.containerName, err)
-		return
+		out = io.NopCloser(strings.NewReader(fmt.Sprintf("can't retrieve logs for container '%s'", cj.containerName)))
 	}
 
 	log.Debug("using mail config: ", cj.mailConfig)
@@ -96,13 +97,18 @@ func (cj *ContainerJob) Run() {
 		log.Error("can't retrieve output streams: ", err)
 	}
 
+	stdout := stdOutBuf.String()
+	stderr := stdErrBuf.String()
+
+	cj.jobFinished(returnCode, fmt.Sprintf("%s\n%s", stdout, stderr))
+
 	if cj.mailConfig.MailPolicy == Always || (cj.mailConfig.MailPolicy == OnError && returnCode != 0) {
 		err = SendMail(cj.mailConfig, MailParams{
 			ContainerName: cj.containerName,
 			ReturnCode:    returnCode,
 			Duration:      jobDuration,
-			StdOut:        stdOutBuf.String(),
-			StdErr:        stdErrBuf.String(),
+			StdOut:        stdout,
+			StdErr:        stderr,
 		})
 		if err != nil {
 			log.Error("can't send mail: ", err)
@@ -110,14 +116,9 @@ func (cj *ContainerJob) Run() {
 	}
 }
 
-func (cj *ContainerJob) jobFinished(returnCode int64) {
+func (cj *ContainerJob) jobFinished(returnCode int64, message string) {
 	if cj.hc != nil {
-		var err error
-		if returnCode == 0 {
-			err = cj.hc.Success()
-		} else {
-			err = cj.hc.FailCode(uint8(returnCode))
-		}
+		err := cj.hc.Ping(returnCode, message)
 		if err != nil {
 			log.Error("can't ping 'end' to hc.io: ", err)
 		}

@@ -3,16 +3,17 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/dansage/hcio"
-	"github.com/kelseyhightower/envconfig"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/robfig/cron/v3"
-	log "github.com/sirupsen/logrus"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/0xERR0R/crony/healthchecks"
+	"github.com/kelseyhightower/envconfig"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/robfig/cron/v3"
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -122,9 +123,9 @@ func (c *Crony) registerContainer(container CronyContainer) {
 
 	log.Infof("... registering container with '%s'", container.CronString)
 
-	var hcCheck *hcio.Check
+	var hcCheck *healthchecks.Check
 	if container.HcUuid != "" {
-		hcCheck = hcio.NewCheck(container.HcUuid)
+		hcCheck = healthchecks.NewCheck(container.HcUuid)
 	}
 
 	job := cron.NewChain(cron.SkipIfStillRunning(&SkipLogger{containerName: container.Name})).Then(&ContainerJob{
