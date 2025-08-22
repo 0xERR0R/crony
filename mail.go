@@ -49,6 +49,13 @@ type MailConfig struct {
 	MailPolicy   MailPolicy `default:"never" envconfig:"mail_policy"`
 }
 
+func (mc *MailConfig) Validate() error {
+	if (mc.SmtpUser != "" && mc.SmtpPassword == "") || (mc.SmtpUser == "" && mc.SmtpPassword != "") {
+		return fmt.Errorf("SMTP_USER and SMTP_PASSWORD must be provided together, or not at all")
+	}
+	return nil
+}
+
 func (m MailConfig) String() string {
 	return fmt.Sprintf("mail config [host=%s, port=%d, user=%s, mailTo=%s, mailFrom=%s, mailPolicy=%s]", m.SmtpHost, m.SmtpPort, m.SmtpUser, m.MailTo, m.MailFrom, m.MailPolicy)
 }
