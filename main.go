@@ -104,6 +104,11 @@ func mailConfig(container CronyContainer) *MailConfig {
 		return nil
 	}
 
+	if err := mailCfg.Validate(); err != nil {
+		log.Error("mail config validation failed", err)
+		return nil
+	}
+
 	if container.MailPolicy != "" {
 		var jobMailPolicy MailPolicy
 		err := jobMailPolicy.Decode(container.MailPolicy)

@@ -42,11 +42,18 @@ func (m *MailPolicy) Decode(value string) error {
 type MailConfig struct {
 	SmtpHost     string     `required:"true" envconfig:"smtp_host"`
 	SmtpPort     int        `required:"true" envconfig:"smtp_port"`
-	SmtpUser     string     `required:"true" envconfig:"smtp_user"`
-	SmtpPassword string     `required:"true" envconfig:"smtp_password"`
+	SmtpUser     string     `envconfig:"smtp_user"`
+	SmtpPassword string     `envconfig:"smtp_password"`
 	MailTo       string     `required:"true" envconfig:"mail_to"`
 	MailFrom     string     `required:"true" envconfig:"mail_from"`
 	MailPolicy   MailPolicy `default:"never" envconfig:"mail_policy"`
+}
+
+func (mc *MailConfig) Validate() error {
+	if (mc.SmtpUser != "" && mc.SmtpPassword == "") || (mc.SmtpUser == "" && mc.SmtpPassword != "") {
+		return fmt.Errorf("SMTP_USER and SMTP_PASSWORD must be provided together, or not at all")
+	}
+	return nil
 }
 
 func (m MailConfig) String() string {
