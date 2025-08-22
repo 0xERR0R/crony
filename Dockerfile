@@ -1,6 +1,6 @@
 FROM golang:1-alpine AS build-env
 
-RUN apk --no-cache add gcc
+RUN apk --no-cache add build-base gcc musl-dev
 
 WORKDIR ${GOPATH}/src/github.com/0xERR0R/crony
 
