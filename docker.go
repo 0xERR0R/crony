@@ -2,14 +2,15 @@ package main
 
 import (
 	"context"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/client"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"strings"
 	"time"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/client"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -49,7 +50,7 @@ func (d *DockerClient) RegisterDockerEventListeners(createFn OnContainerEvent, d
 		filter.Add("type", "container")
 		filter.Add("event", "create")
 		filter.Add("event", "destroy")
-		msg, errChan := d.cli.Events(cxt, types.EventsOptions{
+		msg, errChan := d.cli.Events(cxt, events.ListOptions{
 			Filters: filter,
 		})
 		for {
@@ -82,7 +83,7 @@ func (d *DockerClient) GetCronyContainers(containerId string) ([]CronyContainer,
 	if containerId != "" {
 		filterArgs.Add("id", containerId)
 	}
-	containerList, err := d.cli.ContainerList(context.Background(), types.ContainerListOptions{
+	containerList, err := d.cli.ContainerList(context.Background(), container.ListOptions{
 		All:     true,
 		Filters: filterArgs,
 	})
@@ -102,17 +103,17 @@ func (d *DockerClient) GetCronyContainers(containerId string) ([]CronyContainer,
 	return nil, err
 }
 
-func (d *DockerClient) ContainerWait(name string) (<-chan container.ContainerWaitOKBody, <-chan error) {
+func (d *DockerClient) ContainerWait(name string) (<-chan container.WaitResponse, <-chan error) {
 	return d.cli.ContainerWait(context.Background(), name, container.WaitConditionNotRunning)
 }
 
 func (d *DockerClient) ContainerLogs(name string, startTime time.Time) (io.ReadCloser, error) {
-	return d.cli.ContainerLogs(context.Background(), name, types.ContainerLogsOptions{ShowStdout: true,
+	return d.cli.ContainerLogs(context.Background(), name, container.LogsOptions{ShowStdout: true,
 		ShowStderr: true,
 		Since:      startTime.Format("2006-01-02T15:04:05")})
 
 }
 
 func (d *DockerClient) ContainerStart(name string) error {
-	return d.cli.ContainerStart(context.Background(), name, types.ContainerStartOptions{})
+	return d.cli.ContainerStart(context.Background(), name, container.StartOptions{})
 }
