@@ -1,4 +1,7 @@
 ![Build](https://github.com/0xERR0R/crony/workflows/Build/badge.svg)
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/0xERR0R/crony/build.yaml "Build")](https://github.com/0xERR0R/blocky/actions/workflows/build.yaml)
+[![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/0xERR0R/blocky "Go version")](#)
+[![Donation](https://img.shields.io/badge/buy%20me%20a%20coffee-donate-blueviolet.svg)](https://ko-fi.com/0xerr0r)
 
 # crony
 
