@@ -1,6 +1,8 @@
 package healthchecks
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -34,7 +36,7 @@ func (c *Check) Ping(code int64, message string) error {
 }
 
 func (c *Check) sendPing(url string, message string) error {
-	r, err := http.NewRequest(http.MethodPost, url, strings.NewReader(message))
+	r, err := http.NewRequestWithContext(context.Background(), http.MethodPost, url, strings.NewReader(message))
 	if err != nil {
 		return err
 	}
@@ -49,7 +51,8 @@ func (c *Check) sendPing(url string, message string) error {
 
 		response, err = http.DefaultClient.Do(r)
 		if err != nil {
-			attempts += 1
+			attempts++
+
 			continue
 		}
 
@@ -73,7 +76,7 @@ func (c *Check) sendPing(url string, message string) error {
 			return fmt.Errorf("the server could not find a check with ID: %q", c.ID)
 
 		case "OK (rate limited)":
-			return fmt.Errorf("the server indicates the check was pinged too frequently (5+ times in one minute)")
+			return errors.New("the server indicates the check was pinged too frequently (5+ times in one minute)")
 		}
 
 		return fmt.Errorf("the server returned an unknown response: %v", body)

@@ -30,6 +30,7 @@ func NewDockerClient() *DockerClient {
 	if err != nil {
 		log.Fatal("can't create docker client: ", err)
 	}
+
 	return &DockerClient{cli: cli}
 }
 
@@ -61,11 +62,13 @@ func (d *DockerClient) RegisterDockerEventListeners(createFn OnContainerEvent, d
 				containerName := msg.Actor.Attributes["name"]
 				containerId := msg.Actor.ID
 				log.Infof("received event: '%s' from '%s'", msg.Action, containerName)
+				//nolint:exhaustive // only create/destroy are subscribed via filter
 				switch msg.Action {
-				case "create":
+				case events.ActionCreate:
 					createFn(containerId, containerName)
-				case "destroy":
+				case events.ActionDestroy:
 					destroyFn(containerId, containerName)
+				default:
 				}
 			}
 		}
@@ -88,7 +91,7 @@ func (d *DockerClient) GetCronyContainers(containerId string) ([]CronyContainer,
 		Filters: filterArgs,
 	})
 	if err == nil {
-		var result []CronyContainer
+		result := make([]CronyContainer, 0, len(containerList))
 		for _, c := range containerList {
 			result = append(result, CronyContainer{
 				ID:         c.ID,
@@ -98,8 +101,10 @@ func (d *DockerClient) GetCronyContainers(containerId string) ([]CronyContainer,
 				HcUuid:     c.Labels[hcUuidLabel],
 			})
 		}
+
 		return result, nil
 	}
+
 	return nil, err
 }
 
@@ -108,10 +113,11 @@ func (d *DockerClient) ContainerWait(name string) (<-chan container.WaitResponse
 }
 
 func (d *DockerClient) ContainerLogs(name string, startTime time.Time) (io.ReadCloser, error) {
-	return d.cli.ContainerLogs(context.Background(), name, container.LogsOptions{ShowStdout: true,
+	return d.cli.ContainerLogs(context.Background(), name, container.LogsOptions{
+		ShowStdout: true,
 		ShowStderr: true,
-		Since:      startTime.Format("2006-01-02T15:04:05")})
-
+		Since:      startTime.Format("2006-01-02T15:04:05"),
+	})
 }
 
 func (d *DockerClient) ContainerStart(name string) error {

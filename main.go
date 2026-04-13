@@ -16,6 +16,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	defaultPort     = 8080
+	shutdownTimeout = 30 * time.Second
+)
+
 func main() {
 	configureLogging()
 
@@ -38,11 +43,11 @@ func main() {
 	router.Handle("/metrics", promhttp.Handler())
 
 	server := &http.Server{
-		Addr:    fmt.Sprintf(":%v", 8080),
+		Addr:    fmt.Sprintf(":%d", defaultPort),
 		Handler: router,
 	}
 
-	signals := make(chan os.Signal)
+	signals := make(chan os.Signal, 1)
 	done := make(chan bool)
 
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
@@ -53,7 +58,7 @@ func main() {
 		c.Stop()
 		log.Info("Server is shutting down...")
 
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 
 		if err := server.Shutdown(ctx); err != nil {
@@ -62,9 +67,9 @@ func main() {
 		close(done)
 	}()
 
-	log.Info("Server is ready to handle requests at :", 8080)
+	log.Info("Server is ready to handle requests at :", defaultPort)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("Could not listen on %d: %v\n", 8080, err)
+		log.Fatalf("Could not listen on %d: %v\n", defaultPort, err)
 	}
 
 	<-done
@@ -80,7 +85,7 @@ type Crony struct {
 func (c *Crony) onContainerCreated(containerId string, _ string) {
 	containers, err := c.docker.GetCronyContainers(containerId)
 	if err != nil {
-		log.Fatalf("can't list containers: ", err)
+		log.Fatalf("can't list containers: %v", err)
 	}
 
 	if len(containers) == 1 {
@@ -101,11 +106,13 @@ func mailConfig(container CronyContainer) *MailConfig {
 	err := envconfig.Process("crony", &mailCfg)
 	if err != nil {
 		log.Error("can't parse mail config", err)
+
 		return nil
 	}
 
 	if err := mailCfg.Validate(); err != nil {
 		log.Error("mail config validation failed", err)
+
 		return nil
 	}
 
@@ -118,12 +125,11 @@ func mailConfig(container CronyContainer) *MailConfig {
 			mailCfg.MailPolicy = jobMailPolicy
 		}
 	}
+
 	return &mailCfg
 }
 
 func (c *Crony) registerContainer(container CronyContainer) {
-	// TODO check restart policy
-
 	log.Infof("... found managed container '%s'", container.Name)
 
 	log.Infof("... registering container with '%s'", container.CronString)
@@ -151,7 +157,7 @@ func (c *Crony) registerContainers() {
 	log.Info("starting container registration")
 	containers, err := c.docker.GetCronyContainers("")
 	if err != nil {
-		log.Fatalf("can't list containers: ", err)
+		log.Fatalf("can't list containers: %v", err)
 	}
 	for _, container := range containers {
 		c.registerContainer(container)

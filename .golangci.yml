@@ -1,0 +1,137 @@
+version: "2"
+linters:
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - canonicalheader
+    - containedctx
+    - contextcheck
+    - copyloopvar
+    - decorder
+    - dogsled
+    - dupl
+    - durationcheck
+    - embeddedstructfieldcheck
+    - errchkjson
+    - errorlint
+    - exhaustive
+    - funlen
+    - forbidigo
+    - ginkgolinter
+    - gocheckcompilerdirectives
+    - gochecknoglobals
+    - gochecknoinits
+    - gochecksumtype
+    - gomoddirectives
+    - goprintffuncname
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - gosmopolitan
+    - godox
+    - gomodguard
+    - grouper
+    - importas
+    - iface
+    - inamedparam
+    - interfacebloat
+    - lll
+    - loggercheck
+    - makezero
+    - misspell
+    - mirror
+    - mnd
+    - musttag
+    - nakedret
+    - nestif
+    - nilerr
+    - nilnesserr
+    - nilnil
+    - nlreturn
+    - noctx
+    - nolintlint
+    - nosprintfhostport
+    - perfsprint
+    - prealloc
+    - predeclared
+    - protogetter
+    - reassign
+    - revive
+    - rowserrcheck
+    - sloglint
+    - spancheck
+    - sqlclosecheck
+    - staticcheck
+    - tagalign
+    - testifylint
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - wastedassign
+    - wrapcheck
+    - whitespace
+    - zerologlint
+  disable:
+    - forbidigo
+    - gosmopolitan
+    - recvcheck
+    - wrapcheck
+  settings:
+    ginkgolinter:
+      forbid-focus-container: true
+    mnd:
+      ignored-numbers:
+        - "0666"
+        - "2"
+        - "5"
+    revive:
+      rules:
+        - name: dot-imports
+          disabled: true
+    staticcheck:
+      dot-import-whitelist:
+        - github.com/onsi/ginkgo/v2
+        - github.com/onsi/gomega
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - dupl
+          - funlen
+          - goconst
+          - gochecknoglobals
+          - gochecknoinits
+          - gosec
+          - forcetypeassert
+          - wrapcheck
+          - lll
+        path: _test\.go
+      - linters:
+          - staticcheck
+        path: _test\.go
+        text: "SA1012:"
+      - linters:
+          - wrapcheck
+        path: e2e
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

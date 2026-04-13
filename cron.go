@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,6 +20,7 @@ const (
 	maxLogSize = 1 * 1024 * 1024
 )
 
+//nolint:gochecknoglobals // prometheus metrics are conventionally package-level
 var (
 	executed = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "crony_executed_count",
@@ -43,15 +45,16 @@ type ContainerJob struct {
 	hc            *healthchecks.Check
 }
 
+//nolint:funlen // job run orchestrates start/wait/logs/mail; splitting hurts readability
 func (cj *ContainerJob) Run() {
 	log.Debugf("starting execution of container '%s'", cj.containerName)
 
 	startTime := time.Now()
 
-	// TODO check container state
 	err := cj.docker.ContainerStart(cj.containerName)
 	if err != nil {
 		log.Errorf("can't start container '%s': %v", cj.containerName, err)
+
 		return
 	}
 
@@ -63,6 +66,7 @@ func (cj *ContainerJob) Run() {
 	case err := <-errCh:
 		if err != nil {
 			log.Errorf("can't wait for the end of the execution of container '%s': %v", cj.containerName, err)
+
 			return
 		}
 	case s := <-statusCh:
@@ -71,7 +75,8 @@ func (cj *ContainerJob) Run() {
 
 	labels := prometheus.Labels{
 		"container_name": cj.containerName,
-		"success":        fmt.Sprintf("%t", returnCode == 0)}
+		"success":        strconv.FormatBool(returnCode == 0),
+	}
 	defer executed.With(labels).Inc()
 
 	defer lastExecutionGauge.With(labels).Set(float64(startTime.Unix()))
@@ -80,7 +85,8 @@ func (cj *ContainerJob) Run() {
 
 	defer durationGauge.With(labels).Set(jobDuration.Seconds())
 
-	log.StandardLogger().Logf(logLevelForReturnCode(returnCode), "Execution of container '%s' finished with return code %d", cj.containerName, returnCode)
+	log.StandardLogger().Logf(logLevelForReturnCode(returnCode),
+		"Execution of container '%s' finished with return code %d", cj.containerName, returnCode)
 
 	out, err := cj.docker.ContainerLogs(cj.containerName, startTime)
 	if err != nil {
@@ -138,6 +144,7 @@ func logLevelForReturnCode(returnCode int64) log.Level {
 	if returnCode != 0 {
 		return log.WarnLevel
 	}
+
 	return log.DebugLevel
 }
 
@@ -160,5 +167,6 @@ func createAndStartCron() *cron.Cron {
 
 	c := cron.New()
 	c.Start()
+
 	return c
 }
