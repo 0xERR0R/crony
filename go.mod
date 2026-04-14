@@ -7,6 +7,7 @@ require (
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/hako/durafmt v0.0.0-20210608085754-5c1018a4e16b
 	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/moby/moby/api v1.54.1
 	github.com/prometheus/client_golang v1.23.2
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sirupsen/logrus v1.9.4
@@ -42,7 +43,6 @@ require (
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/go-archive v0.2.0 // indirect
-	github.com/moby/moby/api v1.54.1 // indirect
 	github.com/moby/moby/client v0.4.0 // indirect
 	github.com/moby/patternmatcher v0.6.1 // indirect
 	github.com/moby/sys/atomicwriter v0.1.0 // indirect

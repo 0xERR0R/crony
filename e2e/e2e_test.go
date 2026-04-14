@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"os"
 	"testing"
-
-	_ "github.com/testcontainers/testcontainers-go/network"
 )
 
 const defaultCronyImage = "crony-e2e:latest"
