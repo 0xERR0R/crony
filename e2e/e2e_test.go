@@ -297,3 +297,79 @@ func TestMail_ContainerLabelOverride(t *testing.T) {
 	require.Len(t, msgs, 1)
 	require.Contains(t, msgs[0].Subject, "[SUCCESS]")
 }
+
+func TestHc_SuccessPingLifecycle(t *testing.T) {
+	s := setupCronyStack(t, stackOptions{})
+
+	uuid := "11111111-1111-1111-1111-111111111111"
+	s.mockserver.expectOK(t, uuid, "OK")
+
+	startJobContainer(t, s, jobOpts{
+		name:   "crony-e2e-hc-success",
+		cmd:    []string{"sh", "-c", "echo hello; exit 0"},
+		hcUUID: uuid,
+	})
+
+	require.Eventually(t, func() bool {
+		recs := s.mockserver.recordedRequests(t, uuid)
+		var sawStart, sawZero bool
+		for _, r := range recs {
+			if r.pathMatches("/start") {
+				sawStart = true
+			}
+			if r.pathMatches("/0") {
+				sawZero = true
+			}
+		}
+		return sawStart && sawZero
+	}, 30*time.Second, 500*time.Millisecond, "did not see start + success ping")
+
+	recs := s.mockserver.recordedRequests(t, uuid)
+	var zeroBody string
+	for _, r := range recs {
+		if r.pathMatches("/0") {
+			zeroBody = r.Body
+			break
+		}
+	}
+	require.Contains(t, zeroBody, "hello", "success ping body should contain stdout")
+}
+
+func TestHc_FailurePing(t *testing.T) {
+	s := setupCronyStack(t, stackOptions{})
+
+	uuid := "22222222-2222-2222-2222-222222222222"
+	s.mockserver.expectOK(t, uuid, "OK")
+
+	startJobContainer(t, s, jobOpts{
+		name:   "crony-e2e-hc-failure",
+		cmd:    []string{"sh", "-c", "echo boom >&2; exit 1"},
+		hcUUID: uuid,
+	})
+
+	require.Eventually(t, func() bool {
+		for _, r := range s.mockserver.recordedRequests(t, uuid) {
+			if r.pathMatches("/1") {
+				return true
+			}
+		}
+		return false
+	}, 30*time.Second, 500*time.Millisecond, "did not see failure ping")
+}
+
+func TestHc_NoUuid_NoPings(t *testing.T) {
+	s := setupCronyStack(t, stackOptions{})
+
+	startJobContainer(t, s, jobOpts{
+		name: "crony-e2e-hc-none",
+		cmd:  []string{"sh", "-c", "echo hello; exit 0"},
+	})
+
+	eventuallyMetricAtLeast(t, s.metricsURL, "crony_executed_count",
+		map[string]string{"container_name": "crony-e2e-hc-none", "success": "true"}, 1)
+
+	// No UUID was set on the job, so mockserver should have recorded nothing
+	// under a placeholder UUID.
+	recs := s.mockserver.recordedRequests(t, "00000000-0000-0000-0000-000000000000")
+	require.Empty(t, recs, "no hc.io requests expected when no UUID label is set")
+}

@@ -5,6 +5,7 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -144,9 +145,19 @@ func (m *mockserverContainer) recordedRequests(t *testing.T, uuid string) []reco
 		method, _ := r["method"].(string)
 		path, _ := r["path"].(string)
 		var bodyStr string
-		if b, ok := r["body"].(map[string]any); ok {
+		switch b := r["body"].(type) {
+		case string:
+			// MockServer returns plain string bodies directly as a JSON string
+			bodyStr = b
+		case map[string]any:
+			// MockServer returns structured bodies (e.g. JSON, binary) as an object
 			if s, ok := b["string"].(string); ok {
 				bodyStr = s
+			} else if enc, ok := b["bytes"].(string); ok {
+				// MockServer base64-encodes binary / no-content-type bodies
+				if decoded, err := base64.StdEncoding.DecodeString(enc); err == nil {
+					bodyStr = string(decoded)
+				}
 			}
 		}
 		out = append(out, recordedRequest{Method: method, Path: path, Body: bodyStr})
