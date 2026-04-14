@@ -104,11 +104,3 @@ func (m *mailpitContainer) messageDetail(t *testing.T, id string) mailpitMessage
 	return out
 }
 
-func (m *mailpitContainer) clear(t *testing.T) {
-	t.Helper()
-	req, err := http.NewRequest(http.MethodDelete, m.httpBaseURL+"/api/v1/messages", nil)
-	require.NoError(t, err)
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	resp.Body.Close()
-}

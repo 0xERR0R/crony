@@ -165,16 +165,6 @@ func (m *mockserverContainer) recordedRequests(t *testing.T, uuid string) []reco
 	return out
 }
 
-// reset clears all expectations and recorded requests on the mockserver.
-func (m *mockserverContainer) reset(t *testing.T) {
-	t.Helper()
-	req, err := http.NewRequest(http.MethodPut, m.httpBaseURL+"/mockserver/reset", nil)
-	require.NoError(t, err)
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	resp.Body.Close()
-}
-
 type recordedRequest struct {
 	Method string
 	Path   string

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -25,18 +24,23 @@ const (
 func scrapeMetric(t *testing.T, url, metricName string, labels map[string]string) (float64, bool) {
 	t.Helper()
 	resp, err := http.Get(url)
-	require.NoError(t, err)
+	if err != nil {
+		return 0, false
+	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
+	if err != nil {
+		return 0, false
+	}
+	prefixBrace := metricName + "{"
+	prefixSpace := metricName + " "
 	for _, line := range strings.Split(string(body), "\n") {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		if !strings.HasPrefix(line, metricName) {
+		if !strings.HasPrefix(line, prefixBrace) && !strings.HasPrefix(line, prefixSpace) {
 			continue
 		}
-		// line format: name{label="v",label="v"} value timestamp?
 		openBrace := strings.Index(line, "{")
 		closeBrace := strings.Index(line, "}")
 		if openBrace == -1 || closeBrace == -1 {
