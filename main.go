@@ -136,7 +136,7 @@ func (c *Crony) registerContainer(container CronyContainer) {
 
 	var hcCheck *healthchecks.Check
 	if container.HcUuid != "" {
-		hcCheck = healthchecks.NewCheck(container.HcUuid)
+		hcCheck = healthchecks.NewCheck(container.HcUuid, os.Getenv("HC_BASE_URL"))
 	}
 
 	job := cron.NewChain(cron.SkipIfStillRunning(&SkipLogger{containerName: container.Name})).Then(&ContainerJob{
