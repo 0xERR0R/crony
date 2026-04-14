@@ -100,6 +100,16 @@ func setupCronyStack(t *testing.T, opts stackOptions) *stack {
 	}
 }
 
+func (s *stack) cronyLogs(t *testing.T) string {
+	t.Helper()
+	r, err := s.crony.Logs(context.Background())
+	require.NoError(t, err)
+	defer r.Close()
+	b, err := io.ReadAll(r)
+	require.NoError(t, err)
+	return string(b)
+}
+
 func dumpContainerLogs(t *testing.T, c testcontainers.Container, name string) {
 	t.Helper()
 	r, err := c.Logs(context.Background())

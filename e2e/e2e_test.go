@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -372,4 +373,92 @@ func TestHc_NoUuid_NoPings(t *testing.T) {
 	// under a placeholder UUID.
 	recs := s.mockserver.recordedRequests(t, "00000000-0000-0000-0000-000000000000")
 	require.Empty(t, recs, "no hc.io requests expected when no UUID label is set")
+}
+
+func TestHc_ServerNotFound(t *testing.T) {
+	s := setupCronyStack(t, stackOptions{})
+
+	uuid := "33333333-3333-3333-3333-333333333333"
+	s.mockserver.expectOK(t, uuid, "OK (not found)")
+
+	startJobContainer(t, s, jobOpts{
+		name:   "crony-e2e-hc-notfound",
+		cmd:    []string{"sh", "-c", "echo hi; exit 0"},
+		hcUUID: uuid,
+	})
+
+	// Job still completes successfully.
+	eventuallyMetricAtLeast(t, s.metricsURL, "crony_executed_count",
+		map[string]string{"container_name": "crony-e2e-hc-notfound", "success": "true"}, 1)
+
+	// Crony logs an error mentioning the UUID.
+	require.Eventually(t, func() bool {
+		logs := s.cronyLogs(t)
+		return strings.Contains(logs, uuid) && strings.Contains(logs, "could not find a check")
+	}, 15*time.Second, 500*time.Millisecond, "expected hc not-found error log mentioning UUID")
+}
+
+func TestHc_RateLimited(t *testing.T) {
+	s := setupCronyStack(t, stackOptions{})
+
+	uuid := "44444444-4444-4444-4444-444444444444"
+	s.mockserver.expectOK(t, uuid, "OK (rate limited)")
+
+	startJobContainer(t, s, jobOpts{
+		name:   "crony-e2e-hc-ratelimited",
+		cmd:    []string{"sh", "-c", "echo hi; exit 0"},
+		hcUUID: uuid,
+	})
+
+	eventuallyMetricAtLeast(t, s.metricsURL, "crony_executed_count",
+		map[string]string{"container_name": "crony-e2e-hc-ratelimited", "success": "true"}, 1)
+
+	require.Eventually(t, func() bool {
+		return strings.Contains(s.cronyLogs(t), "pinged too frequently")
+	}, 15*time.Second, 500*time.Millisecond, "expected rate-limited error log")
+}
+
+func TestHc_RetryThenSucceed(t *testing.T) {
+	s := setupCronyStack(t, stackOptions{})
+
+	uuid := "55555555-5555-5555-5555-555555555555"
+	// First two requests drop the connection, third (and beyond) the catch-all OK handles.
+	s.mockserver.expectDropConnectionTimes(t, uuid, 2)
+	s.mockserver.expectOK(t, uuid, "OK")
+
+	startJobContainer(t, s, jobOpts{
+		name:   "crony-e2e-hc-retry",
+		cmd:    []string{"sh", "-c", "echo hi; exit 0"},
+		hcUUID: uuid,
+	})
+
+	// Expect at least 6 total requests: start ping retries 2+1, end ping retries 2+1.
+	require.Eventually(t, func() bool {
+		return len(s.mockserver.recordedRequests(t, uuid)) >= 6
+	}, 30*time.Second, 500*time.Millisecond, "did not see retried then succeeded requests")
+}
+
+func TestHc_GiveUpAfter3(t *testing.T) {
+	s := setupCronyStack(t, stackOptions{})
+
+	uuid := "66666666-6666-6666-6666-666666666666"
+	s.mockserver.expectDropConnectionAlways(t, uuid)
+
+	startJobContainer(t, s, jobOpts{
+		name:   "crony-e2e-hc-giveup",
+		cmd:    []string{"sh", "-c", "echo hi; exit 0"},
+		hcUUID: uuid,
+	})
+
+	// Job continues despite hc.io failure.
+	eventuallyMetricAtLeast(t, s.metricsURL, "crony_executed_count",
+		map[string]string{"container_name": "crony-e2e-hc-giveup", "success": "true"}, 1)
+
+	// After both start and end pings give up (3 attempts each), we should see 6 recorded requests.
+	require.Eventually(t, func() bool {
+		return len(s.mockserver.recordedRequests(t, uuid)) >= 6
+	}, 30*time.Second, 500*time.Millisecond, "expected 6 dropped attempts (3 for start, 3 for end)")
+
+	recs := s.mockserver.recordedRequests(t, uuid)
+	require.LessOrEqual(t, len(recs), 6, "expected at most 6 attempts, got more")
 }
