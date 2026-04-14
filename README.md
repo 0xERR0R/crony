@@ -54,6 +54,7 @@ Crony is configured using environment variables.
 | `SMTP_PASSWORD` | The password for your SMTP server. Must be provided if `SMTP_USER` is set.                                                                  | No       |         |
 | `MAIL_POLICY`   | The global policy for sending mail notifications. Can be overridden by a container label. See [Mail Policies](#mail-policies) for details.  | No       | `never` |
 | `LOG_LEVEL`     | The logging level. One of `trace`, `debug`, `info`, `warn`, `error`, `fatal`.                                                               | No       | `info`  |
+| `HC_BASE_URL`   | The base URL for healthchecks.io pings. Override to point at a self-hosted Healthchecks instance.                                            | No       | `https://hc-ping.com/` |
 
 ### Mail Policies
 

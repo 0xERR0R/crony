@@ -25,8 +25,8 @@ clean: ## cleans output directory
 build: ## Build binary
 	go build $(GO_BUILD_FLAGS) -ldflags="$(GO_BUILD_LD_FLAGS)" -o $(GO_BUILD_OUTPUT) .
 
-test: ## run tests
-	go test ./...
+test: ## run unit tests
+	go test -race -count=1 ./...
 
 lint: fmt ## run golangcli-lint checks
 	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANG_LINT_VERSION) run --timeout 5m
