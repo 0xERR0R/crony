@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 const defaultCronyImage = "crony-e2e:latest"
@@ -21,8 +23,25 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestE2EScaffolding(t *testing.T) {
-	if cronyImage == "" {
-		t.Fatal("cronyImage was not initialised in TestMain")
-	}
+func TestJob_RunsOnSchedule_Success(t *testing.T) {
+	s := setupCronyStack(t, stackOptions{})
+
+	startJobContainer(t, s, jobOpts{
+		name:     "crony-e2e-job-success",
+		cmd:      []string{"sh", "-c", "echo hello; exit 0"},
+		schedule: "@every 2s",
+	})
+
+	eventuallyMetricAtLeast(t, s.metricsURL, "crony_executed_count",
+		map[string]string{"container_name": "crony-e2e-job-success", "success": "true"}, 1)
+
+	dur, ok := scrapeMetric(t, s.metricsURL, "crony_last_duration_sec",
+		map[string]string{"container_name": "crony-e2e-job-success", "success": "true"})
+	require.True(t, ok, "duration gauge missing")
+	require.GreaterOrEqual(t, dur, 0.0)
+
+	ts, ok := scrapeMetric(t, s.metricsURL, "crony_last_execution_ts",
+		map[string]string{"container_name": "crony-e2e-job-success", "success": "true"})
+	require.True(t, ok, "last execution gauge missing")
+	require.Greater(t, ts, 0.0)
 }

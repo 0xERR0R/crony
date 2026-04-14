@@ -1,4 +1,4 @@
-.PHONY: all clean build test lint run fmt help
+.PHONY: all clean build test lint run fmt help build-e2e-image e2e-test
 
 .DEFAULT_GOAL:=help
 
@@ -39,3 +39,9 @@ fmt: ## gofmt all go files
 
 help:  ## Shows help
 	@grep -E '^[0-9a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+
+build-e2e-image: ## Build crony image tagged crony-e2e:latest for end-to-end tests
+	docker build -t crony-e2e:latest .
+
+e2e-test: build-e2e-image ## Run end-to-end tests against the crony-e2e image
+	CRONY_IMAGE=crony-e2e:latest go test -tags=e2e -count=1 -timeout=15m ./e2e/...
