@@ -90,3 +90,23 @@ services:
       # Ping Healthchecks.io
       - crony.hcio_uuid=394ed711-afca-4a4f-9cdb-16b7e976418e
 ```
+
+## Testing
+
+Crony has two test layers:
+
+- **Unit tests** run in-process and require no Docker daemon:
+  ```bash
+  make test
+  ```
+- **End-to-end tests** build a `crony-e2e:latest` image and exercise crony as a real container against [mailpit](https://github.com/axllent/mailpit), [mockserver](https://www.mock-server.com/), and disposable alpine job containers, all on per-test Docker networks via [testcontainers-go](https://golang.testcontainers.org/). A running Docker daemon is required:
+  ```bash
+  make e2e-test
+  ```
+
+To run a single end-to-end scenario:
+
+```bash
+make build-e2e-image
+CRONY_IMAGE=crony-e2e:latest go test -tags=e2e -run TestMail_PolicyAlways ./e2e/
+```

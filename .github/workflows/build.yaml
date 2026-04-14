@@ -17,6 +17,18 @@ jobs:
       - name: make all
         run: make all
 
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Run end-to-end tests
+        run: make e2e-test
+
   docker:
     needs: ci
     runs-on: ubuntu-latest
