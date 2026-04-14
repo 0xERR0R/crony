@@ -7,7 +7,6 @@ import (
 	"os"
 	"testing"
 
-	_ "github.com/testcontainers/testcontainers-go"
 	_ "github.com/testcontainers/testcontainers-go/modules/mockserver"
 	_ "github.com/testcontainers/testcontainers-go/network"
 )
