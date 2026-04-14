@@ -202,3 +202,98 @@ func TestDynamicRegistration_DestroyRemovesJob(t *testing.T) {
 		map[string]string{"container_name": "crony-e2e-dynamic-destroy", "success": "true"})
 	require.Equal(t, before, after, "executions kept happening after container was destroyed")
 }
+
+func TestMail_PolicyNever(t *testing.T) {
+	s := setupCronyStack(t, stackOptions{mailPolicy: "never"})
+
+	startJobContainer(t, s, jobOpts{
+		name: "crony-e2e-mail-never-ok",
+		cmd:  []string{"sh", "-c", "echo ok; exit 0"},
+	})
+	startJobContainer(t, s, jobOpts{
+		name: "crony-e2e-mail-never-fail",
+		cmd:  []string{"sh", "-c", "echo fail; exit 1"},
+	})
+
+	eventuallyMetricAtLeast(t, s.metricsURL, "crony_executed_count",
+		map[string]string{"container_name": "crony-e2e-mail-never-ok", "success": "true"}, 1)
+	eventuallyMetricAtLeast(t, s.metricsURL, "crony_executed_count",
+		map[string]string{"container_name": "crony-e2e-mail-never-fail", "success": "false"}, 1)
+
+	require.Empty(t, s.mailpit.messages(t), "no mail expected with policy=never")
+}
+
+func TestMail_PolicyAlways(t *testing.T) {
+	s := setupCronyStack(t, stackOptions{mailPolicy: "always"})
+
+	startJobContainer(t, s, jobOpts{
+		name: "crony-e2e-mail-always",
+		cmd:  []string{"sh", "-c", "echo greetings; exit 0"},
+	})
+
+	require.Eventually(t, func() bool {
+		return len(s.mailpit.messages(t)) >= 1
+	}, 30*time.Second, 500*time.Millisecond, "no mail received with policy=always")
+
+	msgs := s.mailpit.messages(t)
+	require.Len(t, msgs, 1)
+	require.Contains(t, msgs[0].Subject, "[SUCCESS]")
+	require.Contains(t, msgs[0].Subject, "crony-e2e-mail-always")
+
+	detail := s.mailpit.messageDetail(t, msgs[0].ID)
+	body := detail.HTML
+	require.Contains(t, body, "crony-e2e-mail-always")
+	require.Contains(t, body, "greetings")
+}
+
+func TestMail_PolicyOnError_JobSuccess(t *testing.T) {
+	s := setupCronyStack(t, stackOptions{mailPolicy: "onerror"})
+
+	startJobContainer(t, s, jobOpts{
+		name: "crony-e2e-mail-onerror-ok",
+		cmd:  []string{"sh", "-c", "echo ok; exit 0"},
+	})
+
+	eventuallyMetricAtLeast(t, s.metricsURL, "crony_executed_count",
+		map[string]string{"container_name": "crony-e2e-mail-onerror-ok", "success": "true"}, 1)
+
+	time.Sleep(2 * time.Second)
+	require.Empty(t, s.mailpit.messages(t), "no mail expected for successful job under policy=onerror")
+}
+
+func TestMail_PolicyOnError_JobFailure(t *testing.T) {
+	s := setupCronyStack(t, stackOptions{mailPolicy: "onerror"})
+
+	startJobContainer(t, s, jobOpts{
+		name: "crony-e2e-mail-onerror-fail",
+		cmd:  []string{"sh", "-c", "echo boom >&2; exit 1"},
+	})
+
+	require.Eventually(t, func() bool {
+		return len(s.mailpit.messages(t)) >= 1
+	}, 30*time.Second, 500*time.Millisecond, "no mail received for failing job")
+
+	msgs := s.mailpit.messages(t)
+	require.Len(t, msgs, 1)
+	require.Contains(t, msgs[0].Subject, "[FAIL]")
+	detail := s.mailpit.messageDetail(t, msgs[0].ID)
+	require.Contains(t, detail.HTML, "boom")
+}
+
+func TestMail_ContainerLabelOverride(t *testing.T) {
+	s := setupCronyStack(t, stackOptions{mailPolicy: "never"})
+
+	startJobContainer(t, s, jobOpts{
+		name:       "crony-e2e-mail-label-override",
+		cmd:        []string{"sh", "-c", "echo override; exit 0"},
+		mailPolicy: "always",
+	})
+
+	require.Eventually(t, func() bool {
+		return len(s.mailpit.messages(t)) >= 1
+	}, 30*time.Second, 500*time.Millisecond, "container-level mail policy override didn't take effect")
+
+	msgs := s.mailpit.messages(t)
+	require.Len(t, msgs, 1)
+	require.Contains(t, msgs[0].Subject, "[SUCCESS]")
+}
