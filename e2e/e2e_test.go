@@ -5,6 +5,8 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
@@ -461,4 +463,33 @@ func TestHc_GiveUpAfter3(t *testing.T) {
 
 	recs := s.mockserver.recordedRequests(t, uuid)
 	require.LessOrEqual(t, len(recs), 6, "expected at most 6 attempts, got more")
+}
+
+func TestMetrics_Endpoint(t *testing.T) {
+	s := setupCronyStack(t, stackOptions{})
+
+	// Run a job once so all metric families have at least one sample.
+	startJobContainer(t, s, jobOpts{
+		name: "crony-e2e-metrics",
+		cmd:  []string{"sh", "-c", "echo hi; exit 0"},
+	})
+	eventuallyMetricAtLeast(t, s.metricsURL, "crony_executed_count",
+		map[string]string{"container_name": "crony-e2e-metrics", "success": "true"}, 1)
+
+	resp, err := http.Get(s.metricsURL)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	text := string(body)
+
+	require.Contains(t, text, "crony_executed_count")
+	require.Contains(t, text, "crony_last_duration_sec")
+	require.Contains(t, text, "crony_last_execution_ts")
+
+	require.Contains(t, text, "# TYPE crony_executed_count counter")
+	require.Contains(t, text, "# TYPE crony_last_duration_sec gauge")
+	require.Contains(t, text, "# TYPE crony_last_execution_ts gauge")
 }
