@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/0xERR0R/crony/healthchecks"
-	"github.com/armon/circbuf"
+	"github.com/0xERR0R/crony/internal/ringbuf"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -96,8 +96,8 @@ func (cj *ContainerJob) Run() {
 
 	log.Debug("using mail config: ", cj.mailConfig)
 
-	stdOutBuf, _ := circbuf.NewBuffer(maxLogSize)
-	stdErrBuf, _ := circbuf.NewBuffer(maxLogSize)
+	stdOutBuf := ringbuf.New(maxLogSize)
+	stdErrBuf := ringbuf.New(maxLogSize)
 	_, err = stdcopy.StdCopy(stdOutBuf, stdErrBuf, out)
 	if err != nil {
 		log.Error("can't retrieve output streams: ", err)

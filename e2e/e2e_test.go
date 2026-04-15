@@ -4,10 +4,8 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -18,19 +16,6 @@ import (
 	"github.com/testcontainers/testcontainers-go/network"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
-
-const defaultCronyImage = "crony-e2e:latest"
-
-var cronyImage string
-
-func TestMain(m *testing.M) {
-	cronyImage = os.Getenv("CRONY_IMAGE")
-	if cronyImage == "" {
-		cronyImage = defaultCronyImage
-	}
-	fmt.Fprintf(os.Stderr, "e2e: using crony image %q\n", cronyImage)
-	os.Exit(m.Run())
-}
 
 func TestJob_RunsOnSchedule_Success(t *testing.T) {
 	s := setupCronyStack(t, stackOptions{})

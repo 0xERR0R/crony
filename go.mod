@@ -3,7 +3,6 @@ module github.com/0xERR0R/crony
 go 1.25.0
 
 require (
-	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/hako/durafmt v0.0.0-20210608085754-5c1018a4e16b
 	github.com/kelseyhightower/envconfig v1.4.0
