@@ -39,6 +39,7 @@ func TestMailPolicy_Decode(t *testing.T) {
 			if tc.wantErr {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), "unknown value")
+
 				return
 			}
 			require.NoError(t, err)

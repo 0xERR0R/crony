@@ -25,6 +25,7 @@ func NewCheck(id, baseURL string) *Check {
 	if !strings.HasSuffix(baseURL, "/") {
 		baseURL += "/"
 	}
+
 	return &Check{ID: id, BaseURL: baseURL}
 }
 
