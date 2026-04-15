@@ -11,28 +11,30 @@ import (
 	"time"
 )
 
-const (
-	baseUrl = "https://hc-ping.com/"
-)
+const DefaultBaseURL = "https://hc-ping.com/"
 
 type Check struct {
-	ID string
+	ID      string
+	BaseURL string
 }
 
-func NewCheck(id string) *Check {
-	check := Check{
-		ID: id,
+func NewCheck(id, baseURL string) *Check {
+	if baseURL == "" {
+		baseURL = DefaultBaseURL
+	}
+	if !strings.HasSuffix(baseURL, "/") {
+		baseURL += "/"
 	}
 
-	return &check
+	return &Check{ID: id, BaseURL: baseURL}
 }
 
 func (c *Check) Start() error {
-	return c.sendPing(fmt.Sprintf("%s%s/start", baseUrl, c.ID), "")
+	return c.sendPing(fmt.Sprintf("%s%s/start", c.BaseURL, c.ID), "")
 }
 
 func (c *Check) Ping(code int64, message string) error {
-	return c.sendPing(fmt.Sprintf("%s%s/%d", baseUrl, c.ID, code), message)
+	return c.sendPing(fmt.Sprintf("%s%s/%d", c.BaseURL, c.ID, code), message)
 }
 
 func (c *Check) sendPing(url string, message string) error {
